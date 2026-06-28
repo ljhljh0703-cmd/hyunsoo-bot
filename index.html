@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QuantLeap — 통계적 진입 게이트 × AI 방향성 트레이더 · 포트폴리오</title>
+<meta name="description" content="BTC·ETH 공적분 칼만 Z-Score를 평균회귀 진입 게이트로 쓰고, 게이트가 열리면 AI가 변동성 큰 알트코인에 방향성 포지션을 잡는 자동매매 에이전트. 논문에서 수식을 직접 구현. Python Brain ↔ Rust Spine 이중 구조 + 안전 헌법층. dry-run 기준 · 실거래 성과 미검증 · 투자자문 아님." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#f6f8fc;--bg-soft:#eef2f9;--surface:#ffffff;--ink:#0e1525;--ink-soft:#42506b;--ink-faint:#7a87a3;
+    --line:#e3e9f3;--brand:#3b6fff;--brand-2:#7a5cff;--accent:#00c2b8;--warn:#ff7a59;
+    --shadow:0 10px 40px -12px rgba(30,55,120,.18);--shadow-lg:0 30px 80px -24px rgba(30,55,120,.30);
+    --radius:22px;--maxw:1120px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Noto Sans KR','Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;word-break:keep-all;overflow-wrap:break-word}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  a{color:inherit;text-decoration:none}
+  section{position:relative}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--brand);background:linear-gradient(90deg,rgba(59,111,255,.10),rgba(122,92,255,.10));padding:7px 14px;border-radius:999px;border:1px solid rgba(59,111,255,.18)}
+  h2.section-title{font-size:clamp(28px,4vw,44px);font-weight:900;letter-spacing:-.02em;margin:18px 0 14px;line-height:1.15}
+  .section-sub{font-size:17px;color:var(--ink-soft);max-width:720px}
+  .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  code{font-family:'JetBrains Mono',monospace}
+
+  nav{position:fixed;top:0;left:0;right:0;z-index:50;backdrop-filter:saturate(180%) blur(14px);background:rgba(246,248,252,.78);border-bottom:1px solid transparent;transition:border-color .3s,background .3s}
+  nav.scrolled{border-bottom:1px solid var(--line);background:rgba(246,248,252,.92)}
+  .nav-inner{max-width:var(--maxw);margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.01em;white-space:nowrap}
+  .brand .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--brand-2));display:grid;place-items:center;color:#fff;font-size:16px;box-shadow:0 6px 16px -4px rgba(59,111,255,.55)}
+  .nav-links{display:flex;gap:22px;align-items:center}
+  .nav-links a{font-size:14.5px;font-weight:600;color:var(--ink-soft);transition:color .2s}
+  .nav-links a:hover{color:var(--brand)}
+  .nav-cta{background:var(--ink);color:#fff;padding:9px 18px;border-radius:999px;font-size:14px;font-weight:700;transition:transform .2s,box-shadow .2s}
+  .nav-cta:hover{transform:translateY(-1px);box-shadow:0 8px 20px -6px rgba(14,21,37,.45)}
+  @media(max-width:920px){.nav-links{display:none}}
+
+  .hero{padding:160px 0 80px;overflow:hidden}
+  .hero-grid{display:grid;grid-template-columns:1.12fr .88fr;gap:50px;align-items:center}
+  .hero h1{font-size:clamp(33px,5.2vw,58px);font-weight:900;letter-spacing:-.035em;line-height:1.07;margin:22px 0 20px}
+  .hero h1 .grad{background:linear-gradient(120deg,var(--brand),var(--brand-2) 55%,var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p.lead{font-size:18.5px;color:var(--ink-soft);max-width:580px;margin-bottom:22px}
+  .stage-badge{display:flex;gap:10px;align-items:flex-start;background:rgba(255,122,89,.08);border:1px solid rgba(255,122,89,.30);border-radius:14px;padding:12px 15px;margin-bottom:24px;max-width:560px}
+  .stage-badge .si{font-size:16px}.stage-badge .st{font-size:13px;color:var(--ink-soft);font-weight:600;line-height:1.5}.stage-badge .st b{color:#d2522f;font-weight:800}
+  .hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px}
+  .btn{display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:15.5px;padding:14px 26px;border-radius:14px;transition:transform .2s,box-shadow .25s;cursor:pointer;border:none}
+  .btn-primary{background:linear-gradient(120deg,var(--brand),var(--brand-2));color:#fff;box-shadow:0 14px 34px -12px rgba(59,111,255,.7)}
+  .btn-primary:hover{transform:translateY(-2px)}
+  .btn-ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow)}
+  .btn-ghost:hover{transform:translateY(-2px)}
+  .hero-badges{display:flex;flex-wrap:wrap;gap:10px}
+  .chip{font-size:12.5px;font-weight:700;color:var(--ink-soft);background:var(--surface);border:1px solid var(--line);padding:7px 13px;border-radius:999px;display:inline-flex;gap:7px;align-items:center}
+  .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  .author{display:inline-flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 14px 6px 6px;box-shadow:var(--shadow);margin-bottom:22px}
+  .author .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand-2));display:grid;place-items:center;color:#fff;font-weight:800;font-size:14px}
+  .author .who{display:flex;flex-direction:column;line-height:1.25}.author .who b{font-size:14px;font-weight:800}.author .who span{font-size:11.5px;color:var(--ink-faint);font-weight:600}
+  @media(max-width:900px){.hero-grid{grid-template-columns:1fr;gap:40px}.hero{padding:130px 0 50px}}
+
+  /* telegram mockup */
+  .tg-stage{display:flex;justify-content:center;perspective:1400px}
+  .tg{width:330px;border-radius:30px;background:linear-gradient(160deg,#11182b,#0a0f1d);padding:12px;box-shadow:var(--shadow-lg),0 0 0 2px rgba(255,255,255,.5) inset;transform:rotateY(-11deg) rotateX(3deg);transition:transform .6s cubic-bezier(.2,.7,.2,1)}
+  .tg:hover{transform:rotateY(-3deg) rotateX(1deg)}
+  .tg-screen{background:#0c1124;border-radius:22px;overflow:hidden;display:flex;flex-direction:column;min-height:600px}
+  .tg-top{padding:16px 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #1a2238}
+  .tg-top .ava{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand-2));display:grid;place-items:center;font-size:16px}
+  .tg-top .nm{color:#fff;font-weight:800;font-size:14px;line-height:1.2}.tg-top .nm small{display:block;color:#7d8db5;font-weight:600;font-size:10.5px}
+  .tg-dry{margin-left:auto;font-size:9.5px;font-weight:800;letter-spacing:.05em;color:#ffd0bf;background:rgba(255,122,89,.16);border:1px solid rgba(255,122,89,.5);padding:4px 8px;border-radius:999px}
+  .tg-feed{padding:14px 14px 8px;display:flex;flex-direction:column;gap:9px;flex:1;overflow:hidden;justify-content:flex-end}
+  .tg-feed .msg{animation:tgrise .45s both}
+  .tg-feed .msg.out{opacity:0;transform:translateY(-8px);transition:opacity .3s,transform .3s}
+  @keyframes tgrise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .msg.bot .who9{color:#8fe6d4;font-weight:800}
+  @media(prefers-reduced-motion:reduce){.tg-feed .msg{animation:none}}
+  .msg{max-width:88%;font-size:12px;line-height:1.5;padding:8px 11px;border-radius:13px}
+  .msg.me{align-self:flex-end;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;border-bottom-right-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11.5px}
+  .msg.bot{align-self:flex-start;background:#161e34;color:#d8e0f5;border:1px solid #232d49;border-bottom-left-radius:4px}
+  .msg.bot .cfg{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#9fb4e6;display:block;margin-top:3px}
+  .msg.bot .up{color:#5fd9b0;font-weight:700}.msg.bot .dn{color:#ff8e72;font-weight:700}
+  .msg.sys{align-self:center;font-size:10px;color:#8fa1c9;background:rgba(122,92,255,.12);border:1px solid rgba(122,92,255,.3);padding:5px 10px;border-radius:9px;text-align:center}
+  .tg-foot{padding:9px 14px 16px;display:flex;align-items:center;gap:7px;color:#6c7ba3;font-size:10px;border-top:1px solid #1a2238}
+  .tg-foot .lk{width:6px;height:6px;border-radius:50%;background:var(--warn)}
+  @media(max-width:520px){.tg{transform:none}}
+
+  .stats{margin-top:8px;padding:46px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg-soft),var(--bg))}
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;text-align:center}
+  .stat .num{font-size:clamp(26px,3.4vw,40px);font-weight:900;letter-spacing:-.02em;background:linear-gradient(120deg,var(--brand),var(--brand-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .stat .num.pending{background:none;color:var(--ink-faint);font-size:clamp(20px,2.4vw,26px)}
+  .stat .lbl{font-size:13.5px;color:var(--ink-soft);font-weight:600;margin-top:4px}
+  .stat .lbl small{display:block;font-size:11px;color:var(--ink-faint);font-weight:700;margin-top:3px;font-family:'JetBrains Mono',monospace}
+  .stats-note{text-align:center;margin-top:26px;font-size:12.5px;color:var(--ink-faint);font-weight:600}.stats-note b{color:#d2522f;font-weight:800}
+  @media(max-width:680px){.stats-grid{grid-template-columns:repeat(2,1fr);gap:30px}}
+
+  .pad{padding:92px 0}
+  .center{text-align:center;display:flex;flex-direction:column;align-items:center}
+  .soft{background:linear-gradient(180deg,var(--bg-soft),var(--bg));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+
+  /* strategy / formula */
+  .strat-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:46px}
+  @media(max-width:860px){.strat-grid{grid-template-columns:1fr}}
+  .fcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 26px}
+  .fcard h4{font-size:16px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+  .fcard p{font-size:14px;color:var(--ink-soft)}
+  .fcard .tag{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--brand);background:rgba(59,111,255,.10);border:1px solid rgba(59,111,255,.2);padding:3px 9px;border-radius:7px;font-weight:700}
+  .mathbox{background:#0c1124;border-radius:14px;padding:18px 20px;margin:14px 0;overflow-x:auto;color:#d8e0f5}
+  .mathbox math{font-size:1.15em;color:#d8e0f5}
+  .mathbox .ml{font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.9;color:#d8e0f5;white-space:nowrap}
+  .mathbox .ml .v{color:#5fd9b0}.mathbox .ml .k{color:#7aa2ff}.mathbox .ml .c{color:#5f6f96}
+  .paramtbl{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px}
+  .paramtbl td{padding:9px 6px;border-bottom:1px solid var(--line)}
+  .paramtbl td:first-child{color:var(--ink-soft);font-weight:600}
+  .paramtbl td:last-child{text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700}
+  .paramtbl tr:last-child td{border-bottom:none}
+
+  /* regime cards */
+  .regime{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:46px}
+  @media(max-width:760px){.regime{grid-template-columns:1fr}}
+  .rg{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 26px;display:flex;gap:16px;align-items:flex-start}
+  .rg .ic{flex:0 0 46px;width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px;background:linear-gradient(135deg,rgba(255,122,89,.14),rgba(122,92,255,.12));border:1px solid rgba(255,122,89,.22)}
+  .rg h4{font-size:16px;font-weight:800;margin-bottom:5px}.rg p{font-size:14px;color:var(--ink-soft)}
+  .rg .cut{display:inline-block;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#d2522f;background:rgba(255,122,89,.08);border:1px solid rgba(255,122,89,.25);padding:4px 10px;border-radius:8px}
+
+  /* ===== zc- : 인터랙티브 Z-Score 차트 ===== */
+  .zc-wrap{margin-top:46px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:26px 28px}
+  .zc-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px;margin-bottom:6px}
+  .zc-title{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);font-family:'JetBrains Mono',monospace}
+  .zc-chart{width:100%;height:auto;display:block;margin-top:10px;background:#0c1124;border-radius:14px}
+  .zc-ctl{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:18px}
+  .zc-ctl label{font-size:13.5px;font-weight:700;color:var(--ink-soft)}
+  .zc-ctl input[type=range]{flex:1;min-width:160px;-webkit-appearance:none;appearance:none;height:6px;border-radius:999px;background:var(--bg-soft);outline:none}
+  .zc-ctl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--brand);cursor:pointer;border:3px solid #fff;box-shadow:0 2px 8px -1px rgba(30,55,120,.4)}
+  .zc-ctl .vv{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:16px;color:var(--brand);min-width:46px;text-align:right}
+  .zc-read{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px;font-size:13.5px;color:var(--ink-soft)}
+  .zc-read b{color:var(--ink);font-family:'JetBrains Mono',monospace}
+  .zc-note{font-size:11.5px;color:var(--ink-faint);margin-top:12px;font-family:'JetBrains Mono',monospace}
+
+  /* architecture flow */
+  .flow{display:flex;flex-direction:column;align-items:center;margin-top:40px}
+  .node{width:100%;max-width:700px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px 26px;box-shadow:var(--shadow)}
+  .node.gate{border-color:rgba(255,122,89,.45);background:linear-gradient(180deg,rgba(255,122,89,.05),var(--surface))}
+  .node .tier{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--brand)}.node.gate .tier{color:#d2522f}
+  .node h4{font-size:18px;font-weight:800;margin:4px 0 6px}.node p{font-size:14px;color:var(--ink-soft)}
+  .node .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .node .tags span{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:600;color:var(--ink-soft);background:var(--bg-soft);border:1px solid var(--line);padding:4px 9px;border-radius:7px}
+  .arrow{height:40px;width:2px;background:linear-gradient(180deg,var(--brand),var(--brand-2));position:relative;margin:6px 0}
+  .arrow::after{content:'';position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--brand-2)}
+  .arrow .lbl{position:absolute;left:14px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:11.5px;font-weight:700;color:var(--ink-faint);font-family:'JetBrains Mono',monospace}
+
+  /* paper map table */
+  .papers{margin-top:44px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .papers table{width:100%;border-collapse:collapse;font-size:13.5px}
+  .papers th,.papers td{text-align:left;padding:13px 18px;border-bottom:1px solid var(--line);vertical-align:top}
+  .papers th{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);font-weight:800;background:var(--bg-soft)}
+  .papers tr:last-child td{border-bottom:none}
+  .papers .impl{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:#079e95}
+  .papers .bg{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--ink-faint)}
+  .refs{margin-top:18px;font-size:12.5px;color:var(--ink-soft);line-height:1.9}
+  .refs a{color:var(--brand)}
+
+  /* backtest slot */
+  .bt-slot{margin-top:44px;border:2px dashed var(--line);border-radius:var(--radius);background:radial-gradient(120% 120% at 30% 10%,rgba(59,111,255,.05),transparent 55%),var(--surface);padding:36px 30px;text-align:center}
+  .bt-slot .pill{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:#d2522f;background:rgba(255,122,89,.1);border:1px solid rgba(255,122,89,.3);padding:5px 12px;border-radius:999px;margin-bottom:12px}
+  .bt-slot h4{font-size:18px;font-weight:800;margin-bottom:8px}
+  .bt-slot p{font-size:14px;color:var(--ink-soft);max-width:620px;margin:0 auto}
+  .bt-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:640px;margin:20px auto 0}
+  @media(max-width:620px){.bt-cols{grid-template-columns:repeat(3,1fr);gap:8px}}
+  .bt-cols div{background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;padding:12px 8px;font-size:12px;color:var(--ink-faint);font-weight:700}
+  .bt-cols div b{display:block;font-size:13px;color:var(--ink-soft)}
+
+  /* secondary AI loop (condensed) */
+  .ai2{display:grid;grid-template-columns:54px 1fr;gap:18px;align-items:start;background:rgba(122,92,255,.05);border:1px solid rgba(122,92,255,.22);border-radius:var(--radius);padding:24px 26px;margin-top:24px}
+  .ai2 .ix{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;font-size:24px;background:rgba(122,92,255,.12);border:1px solid rgba(122,92,255,.25)}
+  .ai2 h4{font-size:17px;font-weight:800;margin-bottom:6px}.ai2 p{font-size:14px;color:var(--ink-soft)}
+  .ai2 code{font-size:12px;background:var(--bg-soft);padding:1px 6px;border-radius:5px;border:1px solid var(--line)}
+
+  /* timeline */
+  .tl{margin-top:44px;position:relative;padding-left:30px}
+  .tl::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:linear-gradient(180deg,var(--brand),var(--brand-2))}
+  .tl-item{position:relative;padding:0 0 28px 26px}
+  .tl-item::before{content:'';position:absolute;left:-30px;top:5px;width:16px;height:16px;border-radius:50%;background:var(--surface);border:3px solid var(--brand);box-shadow:0 0 0 4px var(--bg)}
+  .tl-item h4{font-size:16px;font-weight:800;margin-bottom:5px}.tl-item p{font-size:14px;color:var(--ink-soft)}
+  .tl-item code{font-size:12px;background:var(--bg-soft);padding:1px 6px;border-radius:5px;border:1px solid var(--line)}
+
+  /* demo placeholders */
+  .demo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+  @media(max-width:820px){.demo-grid{grid-template-columns:1fr}}
+  .shot{aspect-ratio:16/11;border-radius:16px;border:2px dashed var(--line);background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:22px;box-shadow:var(--shadow)}
+  .shot .si{width:50px;height:50px;border-radius:13px;display:grid;place-items:center;font-size:22px;background:linear-gradient(135deg,rgba(0,194,184,.14),rgba(59,111,255,.14));border:1px solid rgba(59,111,255,.18)}
+  .shot .vt{font-weight:800;font-size:15px}.shot .vs{font-size:12.5px;color:var(--ink-faint)}
+  .shot .ph{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-faint);background:var(--bg-soft);border:1px solid var(--line);padding:4px 10px;border-radius:8px}
+
+  .limits{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:44px}
+  @media(max-width:760px){.limits{grid-template-columns:1fr}}
+  .lim{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px;box-shadow:var(--shadow)}
+  .lim h4{font-size:16px;font-weight:800;margin-bottom:12px;display:flex;gap:9px}
+  .lim ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+  .lim li{font-size:14px;color:var(--ink-soft);padding-left:18px;position:relative}
+  .lim li::before{content:'›';position:absolute;left:2px;color:var(--brand);font-weight:800}.lim li b{color:var(--ink)}
+
+  .disc{background:#0c1124;color:#cdd8f2}
+  .disc-inner{padding:40px 0;display:grid;grid-template-columns:48px 1fr;gap:20px;align-items:start}
+  .disc .di{width:48px;height:48px;border-radius:13px;display:grid;place-items:center;font-size:22px;background:rgba(255,122,89,.16);border:1px solid rgba(255,122,89,.4)}
+  .disc h4{font-size:16px;font-weight:800;color:#fff;margin-bottom:8px}.disc p{font-size:13.5px;color:#9fb0d4;line-height:1.7}.disc p b{color:#ffd0bf}
+
+  .final{padding:90px 0;text-align:center}
+  .final-card{background:linear-gradient(135deg,#0e1733,#1a1450);border-radius:30px;padding:60px 40px;color:#fff;box-shadow:var(--shadow-lg);position:relative;overflow:hidden}
+  .final-card::before{content:'';position:absolute;inset:0;background:radial-gradient(80% 120% at 80% 0%,rgba(0,194,184,.25),transparent 50%),radial-gradient(70% 120% at 10% 100%,rgba(122,92,255,.35),transparent 50%)}
+  .final-card>*{position:relative}
+  .final-card h2{font-size:clamp(26px,4vw,40px);font-weight:900;letter-spacing:-.02em;margin-bottom:14px}
+  .final-card p{font-size:16px;color:#bcc8ec;max-width:560px;margin:0 auto 28px}
+  .final-card .hero-cta{justify-content:center}.btn-light{background:#fff;color:var(--ink)}.btn-line{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.3)}
+  footer{padding:40px 0;border-top:1px solid var(--line);text-align:center;color:var(--ink-faint);font-size:13.5px}
+  footer .brand{justify-content:center;color:var(--ink-soft);margin-bottom:10px}
+  footer .contact{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:12px 0 4px;font-size:13.5px}
+  footer .contact a{color:var(--ink-soft);font-weight:600}
+
+  /* theoretical foundation band */
+  .found{background:linear-gradient(160deg,#0e1733,#181a3e);color:#fff;padding:38px 0}
+  .found-label{font-size:11px;font-weight:800;letter-spacing:.14em;color:#8fa8ff;font-family:'JetBrains Mono',monospace;text-transform:uppercase}
+  .found-lead{font-size:clamp(18px,2.2vw,25px);font-weight:800;letter-spacing:-.01em;margin:8px 0 20px;line-height:1.35}
+  .found-lead .hl{background:linear-gradient(120deg,#7aa2ff,#00c2b8);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .found-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .fnd{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.13);border-radius:14px;padding:16px 16px}
+  .fnd b{display:block;font-size:14.5px;font-weight:800;color:#fff;margin-bottom:5px}
+  .fnd span{font-size:12px;color:#aeb9e0;font-family:'JetBrains Mono',monospace;line-height:1.5}
+  .fnd .nobel{color:#ffd66e}
+  @media(max-width:760px){.found-grid{grid-template-columns:1fr 1fr}}
+  @media print{nav,.tg-stage{display:none}.reveal{opacity:1;transform:none}body{background:#fff}}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-inner">
+    <div class="brand"><span class="logo">📈</span> QuantLeap</div>
+    <div class="nav-links">
+      <a href="#strategy">전략</a>
+      <a href="#regime">레짐</a>
+      <a href="#playground">Z-Score</a>
+      <a href="#arch">아키텍처</a>
+      <a href="#papers">논문</a>
+      <a href="#rsi">RSI 루프</a>
+      <a href="#livelog">라이브 로그</a>
+      <a href="#eval">평가</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/ljhljh0703-cmd/binance-trading-bot" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">QuantLeap · Statistical Gate × AI Trader</span>
+      <h1>시장의 방향을 예측하는 대신,<br/><span class="grad">변동성을 읽고 거래하는</span> 자동매매 프로그램</h1>
+      <p class="lead"><b>QuantLeap</b>은 BTC·ETH의 통계적 균형이 평균에서 비정상적으로 벌어지는 순간을 '진입 게이트'로 씁니다. <b>칼만 필터</b>로 두 자산의 숨은 균형(헤지비율 β)을 실시간 추정하고, <b>Z-Score</b>로 통계적으로 유의미한 평균회귀 국면만 골라냅니다. 이 게이트가 열리면 — <b>AI(제미나이)가 변동성 큰 알트코인을 선별해 방향(롱/숏)</b>을 잡습니다. VIX·공포탐욕 지수로 시장이 무너지는 국면은 피합니다. 감(感)이 아니라 — <b>노벨경제학상을 받은 공적분 이론</b>과 칼만 필터 위에 세운 시스템입니다.</p>
+      <p style="margin:0 0 22px;font-size:12.5px;color:var(--ink-faint);font-weight:600">기반 연구 — 학술 논문 <b style="color:var(--ink)">7편</b> · 증권 리포트 <b style="color:var(--ink)">2건</b> · 퀀트 저서·가이드 <b style="color:var(--ink)">6건</b></p>
+      <div class="author">
+        <span class="av">이주</span>
+        <span class="who"><b>이주형 · Lee Ju Hyeong</b><span>1인 설계·구현 · Python(전략) + Rust(신뢰) · 논문→수식 직접 구현</span></span>
+      </div>
+      <div class="stage-badge">
+        <span class="si">⚠️</span>
+        <span class="st">단계 — <b>작동 프로토타입</b>. 전략 구현 + 텔레그램 신호 작동 확인. <b>기본 dry-run(모의 — 실주문 없음) · 백테스트/실거래 성과는 측정 전.</b> 수익률·승률 주장 0.</span>
+      </div>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#playground">▶ Z-Score 인터랙티브</a>
+        <a class="btn btn-ghost" href="https://github.com/ljhljh0703-cmd/binance-trading-bot" target="_blank" rel="noopener">GitHub 저장소 ↗</a>
+      </div>
+      <div class="hero-badges">
+        <span class="chip"><span class="dot"></span>Kalman Filter (동적 β)</span>
+        <span class="chip"><span class="dot"></span>Z-Score Gate · |Z|&gt;1.65</span>
+        <span class="chip"><span class="dot"></span>VIX + Fear&amp;Greed 레짐</span>
+        <span class="chip"><span class="dot"></span>Rust Spine · 직접 REST</span>
+      </div>
+    </div>
+
+    <!-- telegram dry-run mockup -->
+    <div class="tg-stage">
+      <div class="tg"><div class="tg-screen">
+        <div class="tg-top"><div class="ava">📈</div><div class="nm">QuantLeap · 현수<small>통제소 · 게이트 BTC·ETH 4h</small></div><div class="tg-dry">DRY-RUN</div></div>
+        <div class="tg-feed" id="tgFeed"></div>
+        <div class="tg-foot"><span class="lk"></span>dry-run 신호 세션 · P&amp;L 미표시</div>
+      </div></div>
+    </div>
+  </div>
+</header>
+
+<!-- THEORETICAL FOUNDATION -->
+<section class="found">
+  <div class="wrap">
+    <div class="found-label">Theoretical Foundation</div>
+    <p class="found-lead">노벨경제학상 이론을 포함해 <span class="hl">검증된 학술 연구</span>를 기반으로 한 매매 로직</p>
+    <div class="found-grid">
+      <div class="fnd"><b>공적분 (Cointegration)</b><span class="nobel">Engle &amp; Granger, 1987<br/>→ 2003 노벨경제학상</span></div>
+      <div class="fnd"><b>칼만 필터 (Kalman Filter)</b><span>R. E. Kálmán, 1960<br/>상태공간 추정의 정본</span></div>
+      <div class="fnd"><b>평균회귀 — OU 과정</b><span>Ornstein–Uhlenbeck<br/>평균으로 되돌아오는 확률과정</span></div>
+      <div class="fnd"><b>상태공간 평균회귀</b><span>Elliott · van der Hoek<br/>· Malcolm, 2005</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="stats">
+  <div class="wrap">
+    <div class="stats-grid">
+      <div class="stat reveal"><div class="num">BTC·ETH</div><div class="lbl">게이트 기준쌍<small>공적분 칼만 Z</small></div></div>
+      <div class="stat reveal"><div class="num">1.65σ</div><div class="lbl">진입 Z 임계<small>≈ 90% 신뢰구간</small></div></div>
+      <div class="stat reveal"><div class="num">6+</div><div class="lbl">직접 구현 논문 수식<small>칼만·공적분·Z-Score</small></div></div>
+      <div class="stat reveal"><div class="num pending">측정 전</div><div class="lbl">실거래 성과<small>dry-run · 수익률 미주장</small></div></div>
+    </div>
+    <p class="stats-note">전략 파라미터·구현 지표입니다 — <b>실거래 손익·승률·수익률은 측정 전</b>이며 어떤 성과도 주장하지 않습니다.</p>
+  </div>
+</section>
+
+<!-- RECURSIVE SELF-IMPROVEMENT LOOP (RSI) — 핵심 특징, The Strategy 위 -->
+<section class="pad soft" id="rsi">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">Recursive Self-Improvement · RSI</span>
+      <h2 class="section-title reveal">‘봇’이 아니라, 스스로 개선되는 시스템</h2>
+      <p class="section-sub reveal"><b>model + harness</b> — AI 판단은 한 구성요소일 뿐, 리스크 게이트·평가 하네스·회고·로그가 모델을 감싸는 <b>harness</b>가 본체입니다. 거래에서 배우고(학습), 그 배움을 규칙으로 제도화하며(개선), 시장에 적응하도록 — 한 번 짜고 끝나는 코드가 아니라 <b>루프가 도는</b> 자동매매를 설계했습니다.</p>
+    </div>
+    <div class="reveal" style="max-width:580px;margin:0 auto 8px">
+<svg viewBox="0 0 700 560" style="width:100%;height:auto;display:block;max-width:560px;margin:0 auto" xmlns="http://www.w3.org/2000/svg" font-family="'Apple SD Gothic Neo','Noto Sans KR',-apple-system,'Segoe UI',sans-serif" role="img" aria-label="현수봇 재귀개선 루프(RSI) 다이어그램">
+  <defs>
+    <marker id="rh" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#3b6fff"/>
+    </marker>
+    <marker id="rt" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#00b3a4"/>
+    </marker>
+  </defs>
+  <rect x="1" y="1" width="698" height="558" rx="20" fill="#ffffff" stroke="#e3e9f3"/>
+  <text x="34" y="40" font-size="17" font-weight="800" fill="#0e1525">재귀개선 루프 (RSI)</text>
+  <text x="34" y="60" font-size="12.5" fill="#6b7a99">거래에서 배우고 규칙을 제도화하며 시장에 적응한다 — model + harness</text>
+  <g>
+    <rect x="60" y="84" width="430" height="52" rx="12" fill="#f6f8fc" stroke="#cdd9f5"/>
+    <text x="80" y="108" font-size="14.5" font-weight="700" fill="#0e1525">① 거래 실행 · 청산</text>
+    <text x="80" y="126" font-size="11.5" fill="#6b7a99">실현 ROE · BTC 대비 alpha 산출</text>
+    <rect x="60" y="158" width="430" height="52" rx="12" fill="#f6f8fc" stroke="#cdd9f5"/>
+    <text x="80" y="182" font-size="14.5" font-weight="700" fill="#0e1525">② 회고 생성</text>
+    <text x="80" y="200" font-size="11.5" fill="#6b7a99">반성·기억 — TradingAgents 흡수</text>
+    <rect x="60" y="232" width="430" height="52" rx="12" fill="#f6f8fc" stroke="#cdd9f5"/>
+    <text x="80" y="256" font-size="14.5" font-weight="700" fill="#0e1525">③ BM25 기억 저장 · 다음 분석에 주입</text>
+    <text x="80" y="274" font-size="11.5" fill="#6b7a99">학습 — 무비용·오프라인 (청산당 1회)</text>
+    <rect x="60" y="306" width="430" height="52" rx="12" fill="#f6f8fc" stroke="#cdd9f5"/>
+    <text x="80" y="330" font-size="14.5" font-weight="700" fill="#0e1525">④ Postmortem</text>
+    <text x="80" y="348" font-size="11.5" fill="#6b7a99">손절·미진입·필터탈락 — TradingCodex 흡수</text>
+    <rect x="60" y="380" width="430" height="52" rx="12" fill="#f6f8fc" stroke="#cdd9f5"/>
+    <text x="80" y="404" font-size="14.5" font-weight="700" fill="#0e1525">⑤ 규칙 proposal → 검증 → audit</text>
+    <text x="80" y="422" font-size="11.5" fill="#6b7a99">제도화 — 숨은 변경 금지</text>
+    <rect x="60" y="454" width="430" height="52" rx="12" fill="#eef7f6" stroke="#9fdcd5"/>
+    <text x="80" y="478" font-size="14.5" font-weight="700" fill="#0e1525">⑥ 반복 실수 = 진입 전 자동 체크로 박제</text>
+    <text x="80" y="496" font-size="11.5" fill="#0a8c82">validation — eval 하네스가 검증 팔</text>
+  </g>
+  <g stroke="#3b6fff" stroke-width="2.2" marker-end="url(#rh)">
+    <line x1="275" y1="138" x2="275" y2="155"/>
+    <line x1="275" y1="212" x2="275" y2="229"/>
+    <line x1="275" y1="286" x2="275" y2="303"/>
+    <line x1="275" y1="360" x2="275" y2="377"/>
+    <line x1="275" y1="434" x2="275" y2="451"/>
+  </g>
+  <path d="M490,480 H560 Q588,480 588,452 V138 Q588,110 560,110 H492"
+        fill="none" stroke="#00b3a4" stroke-width="2.4" stroke-dasharray="6 5" marker-end="url(#rt)"/>
+  <text x="600" y="300" font-size="12.5" font-weight="700" fill="#0a8c82" transform="rotate(90 600 300)" text-anchor="middle">↺ 다음 거래에 반영 · 시장 적응</text>
+</svg>
+    </div>
+    <p class="reveal" style="max-width:820px;margin:14px auto 0;font-size:13px;color:var(--ink-soft);line-height:1.7;text-align:center">이 루프는 외부 트레이딩 에이전트 2종을 진지하게 해체·흡수해 설계했습니다 — <b>TradingAgents</b>(반성·기억 BM25, arXiv 2412.20138)·<b>TradingCodex</b>(harness + improvement loop). <span style="color:var(--ink-faint)">※ 두 흡수는 <b>설계 반영 단계</b>(구현 완료 아님, 일부 미배포)로 정직 표기.</span></p>
+  </div>
+</section>
+
+<!-- STRATEGY -->
+<section class="pad" id="strategy">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">The Strategy</span>
+      <h2 class="section-title reveal">칼만 Z-Score 게이트 → AI 방향성 진입</h2>
+      <p class="section-sub reveal">BTC·ETH는 장기적으로 함께 움직입니다(공적분). 이 균형이 비정상적으로 벌어지는 순간을 칼만 필터의 동적 헤지비율 β와 Z-Score로 포착해 — <b>진입 타이밍 게이트</b>로 씁니다. 게이트가 열리고 레짐이 안전하면, AI가 변동성 큰 알트코인에 방향성 포지션을 잡습니다.</p>
+    </div>
+
+    <div class="strat-grid">
+      <div class="fcard reveal">
+        <h4>스프레드 &amp; 칼만 상태공간 <span class="tag">Elliott et al. 2005</span></h4>
+        <p>헤지비율 β를 '숨은 값'으로 두고 4시간 봉마다 칼만 필터로 갱신합니다. 스프레드의 평균회귀는 상태공간 모델(Ornstein–Uhlenbeck — 평균으로 되돌아오는 확률과정)로 표현합니다.</p>
+        <div class="mathbox">
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML">
+            <msub><mi>s</mi><mi>t</mi></msub><mo>=</mo>
+            <msubsup><mi>P</mi><mi>t</mi><mtext>BTC</mtext></msubsup><mo>−</mo>
+            <msub><mi>β</mi><mi>t</mi></msub><mo>·</mo>
+            <msubsup><mi>P</mi><mi>t</mi><mtext>ETH</mtext></msubsup>
+          </math>
+          <div class="ml" style="margin-top:10px">
+            <span class="c"># 칼만 상태공간 (β = 은닉 상태)</span><br>
+            <span class="k">β</span>ₜ = <span class="k">β</span>ₜ₋₁ + wₜ <span class="c">// 상태 전이</span><br>
+            <span class="k">P</span><span class="v">BTC</span>ₜ = <span class="k">β</span>ₜ·<span class="k">P</span><span class="v">ETH</span>ₜ + vₜ <span class="c">// 관측</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fcard reveal">
+        <h4>Z-Score 게이트 → AI 방향성 실행 <span class="tag">Cointegration · 확정 config</span></h4>
+        <p>스프레드를 롤링 평균·표준편차로 정규화해 "얼마나 비정상적으로 벌어졌나"를 Z로 판정합니다. <b>|z|&gt;1.65이고 레짐이 안전하면 게이트가 열립니다.</b> 이때 AI(제미나이)가 변동성 큰 알트코인을 선별하고 방향(롱/숏)을 정해 진입합니다. 청산은 |z|&lt;0.75 복귀 + TP 백스탑 + 손절(−10% ROE) + 타임스탑.</p>
+        <div class="mathbox">
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML">
+            <msub><mi>z</mi><mi>t</mi></msub><mo>=</mo>
+            <mfrac><mrow><msub><mi>s</mi><mi>t</mi></msub><mo>−</mo><msub><mi>μ</mi><mi>t</mi></msub></mrow><msub><mi>σ</mi><mi>t</mi></msub></mfrac>
+          </math>
+          <div class="ml" style="margin-top:10px">
+            <span class="v">게이트 개방</span>: |z| &gt; <span class="k">1.65</span> <span class="c">// ≈90% CI</span><br>
+            <span class="v">청산</span>: |z| &lt; <span class="k">0.75</span> <span class="c">// 평균회귀 완료</span><br>
+            <span class="v">손절</span>: <span class="k">−10%</span> ROE · <span class="v">타임스탑</span> <span class="k">120</span>분
+          </div>
+        </div>
+        <table class="paramtbl">
+          <tr><td>게이트 기준 · 타임프레임</td><td>BTC·ETH 공적분 Z · 4h × 220봉</td></tr>
+          <tr><td>실행 대상</td><td>AI 선별 알트코인 (예: SOL)</td></tr>
+          <tr><td>평균·분산 / σ피처 / 기울기 / RSI</td><td>200 / 20 / 5 / 14봉</td></tr>
+          <tr><td>레버리지</td><td>3x~5x (AI · 최소 3x)</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REGIME -->
+<section class="pad soft" id="regime">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">Regime Filter</span>
+      <h2 class="section-title reveal">평균회귀가 깨지는 구간은 진입하지 않는다</h2>
+      <p class="section-sub reveal">평균회귀 신호는 추세장·공포장에서 무너집니다. 시장 국면(레짐)을 외부 지표로 판정해, 위험 국면에서는 게이트를 아예 열지 않습니다.</p>
+    </div>
+    <div class="regime">
+      <div class="rg reveal">
+        <div class="ic">📉</div>
+        <div><h4>VIX 변동성 레짐</h4><p>VIX(공포지수) 5일 단순이동평균의 Z-Score가 임계를 넘으면 변동성 급등 국면으로 보고 진입을 멈춥니다.</p><span class="cut">VIX 5d SMA Z &gt; 2.0 → 진입 중단</span></div>
+      </div>
+      <div class="rg reveal">
+        <div class="ic">😱</div>
+        <div><h4>Crypto Fear &amp; Greed</h4><p>암호화폐 공포·탐욕 지수가 극단 공포로 떨어지면 상관 붕괴 위험이 커지므로 진입을 멈춥니다.</p><span class="cut">Fear &amp; Greed &lt; 20 → 진입 중단</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INTERACTIVE Z-SCORE -->
+<section class="pad" id="playground">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">Interactive</span>
+      <h2 class="section-title reveal">Z-Score 게이트, 직접 움직여 보세요</h2>
+      <p class="section-sub reveal">스프레드의 Z-Score가 밴드를 넘는 순간이 게이트 개방(진입 허용), 0.75 안으로 돌아오면 청산 신호입니다. 진입 임계(z)를 바꾸면 게이트가 열리는 타점과 횟수가 어떻게 달라지는지 보입니다 — "왜 1.65인가"가 트레이드오프로 드러납니다.</p>
+    </div>
+    <div class="zc-wrap reveal">
+      <div class="zc-head"><span class="zc-title">SPREAD Z-SCORE · 진입/청산 시뮬</span></div>
+      <svg id="zcChart" class="zc-chart" viewBox="0 0 960 300" role="img" aria-label="스프레드 Z-Score 시계열과 진입/청산 임계 밴드, 진입·청산 마커"></svg>
+      <div class="zc-ctl">
+        <label>진입 임계 z<sub>enter</sub></label>
+        <input type="range" id="zcSlider" min="1.50" max="3.00" step="0.05" value="1.65">
+        <span class="vv" id="zcVal">1.65</span>
+      </div>
+      <div class="zc-read">
+        <span>게이트 개방: <b id="zcEntries">—</b></span>
+        <span>청산 임계: <b>0.75</b></span>
+        <span>현재 임계: <b id="zcNow">1.65</b></span>
+      </div>
+      <div class="zc-note">※ 예시 데이터(평균회귀 시뮬)로 게이트 작동을 시연합니다. 실제 시세·백테스트 수치가 아니며 성과를 의미하지 않습니다.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section class="pad soft" id="arch">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">System Design</span>
+      <h2 class="section-title reveal">Python Brain ↔ Rust Spine 이중 구조</h2>
+      <p class="section-sub reveal">가변 전략은 Python, 끊기면 안 되는 통신·체결·청산은 Rust로 분리했습니다. 모든 주문은 안전 헌법층을 통과합니다.</p>
+    </div>
+    <div class="flow">
+      <div class="node reveal">
+        <div class="tier">① Python Brain — 전략 계층</div>
+        <h4>칼만 Z 게이트 · 레짐 · AI 판단</h4>
+        <p>Binance REST로 4h 시세를 수집(ccxt 등 라이브러리 없이 직접 구현)하고, 칼만 필터로 β·스프레드를 추정합니다. Z-Score와 레짐 필터로 게이트를 열고, 게이트가 열리면 AI(제미나이) 판사가 변동성 큰 알트코인과 방향(롱/숏)을 결정합니다.</p>
+        <div class="tags"><span>Python</span><span>Kalman (직접 구현)</span><span>Z-Score Gate</span><span>VIX·F&amp;G</span><span>Gemini 판사</span></div>
+      </div>
+      <div class="arrow"><span class="lbl">주문 의도 → 게이트</span></div>
+      <div class="node gate reveal">
+        <div class="tier">② 안전 헌법층 — Rust Spine 강제</div>
+        <h4>리스크를 코드로 강제</h4>
+        <p>모든 주문이 통과하는 관문. kill-switch · 레버리지 상한 · 일일 손실 한도를 코드로 강제하며, 전략 경로가 우회할 수 없습니다.</p>
+        <div class="tags"><span>kill-switch</span><span>leverage cap</span><span>daily-loss limit</span></div>
+      </div>
+      <div class="arrow"><span class="lbl">검증 통과분만 → 체결</span></div>
+      <div class="node reveal">
+        <div class="tier">③ Rust Spine — 신뢰 계층</div>
+        <h4>주문 원자성 · 통신 · 청산</h4>
+        <p>Binance REST를 직접 호출하되 요청마다 위·변조 방지 서명(HMAC)을 붙입니다. 진입과 동시에 보호주문을 함께 발주해 원자성을 보장하고, WebSocket으로 체결·청산을 감지하며 한쪽만 체결되면 되돌립니다.</p>
+        <div class="tags"><span>Rust · axum</span><span>hmac-sha256</span><span>tokio</span><span>WebSocket</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PAPERS -->
+<section class="pad" id="papers">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">From Paper to Code</span>
+      <h2 class="section-title reveal">논문 → 수식 → 코드</h2>
+      <p class="section-sub reveal">전략의 모든 핵심은 학술 논문에서 수식을 끌어와 직접 구현했습니다(라이브러리 래핑이 아님). "직접 구현"과 "배경 검토"를 정직하게 구분합니다.</p>
+    </div>
+    <div class="papers reveal">
+      <table>
+        <thead><tr><th>구현 요소</th><th>근거 문헌</th><th>사용</th></tr></thead>
+        <tbody>
+          <tr><td>칼만 상태공간 평균회귀 (동적 β)</td><td>Elliott, van der Hoek &amp; Malcolm (2005), <em>Quantitative Finance</em> 5(3):271–276</td><td><span class="impl">직접 구현</span></td></tr>
+          <tr><td>공적분 · 롤링 정상성 · Z-Score(±1.65~2.0) 게이트</td><td>Cointegration-based pairs trading (ETF)</td><td><span class="impl">직접 구현</span></td></tr>
+          <tr><td>코퓰러 · 조건부확률(0.05/0.95) 접근</td><td>Liew &amp; Wu (2013), <em>J. Derivatives &amp; Hedge Funds</em> 19:12–30</td><td><span class="bg">배경 검토</span></td></tr>
+          <tr><td>암호화폐 의존성 (ARMA-GARCH · 코퓰러)</td><td>Dependence Modeling in Crypto using Copula</td><td><span class="bg">배경 검토</span></td></tr>
+          <tr><td>ML/RL 통계적 차익거래 · LOB 딥러닝</td><td>Enhancing Stat-Arb with ML · jrfm-12-00031 · 1601.01987</td><td><span class="bg">배경 검토</span></td></tr>
+          <tr><td>체계적(systematic) vs 재량적 운용 관점</td><td>Campbell Harvey 칼럼 · 강환국 퀀트 투자 · 증권사 리포트(삼성·유진)</td><td><span class="bg">서사·관점</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="refs reveal">
+      대표 인용 — Elliott, R., van der Hoek, J., Malcolm, W. (2005). <em>Pairs trading.</em> Quantitative Finance, 5(3), 271–276. ·
+      Liew, R., Wu, Y. (2013). <em>Pairs trading: A copula approach.</em> Journal of Derivatives &amp; Hedge Funds, 19, 12–30.
+    </p>
+  </div>
+</section>
+
+<!-- LIVE BRAIN LOG -->
+<section class="pad soft" id="livelog">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">Live Brain Log</span>
+      <h2 class="section-title reveal">판단 과정을 그대로 보여줍니다</h2>
+      <p class="section-sub reveal">아래는 실제 Brain 로그입니다. 레짐 판정 → AI가 종목·방향 제안 → 칼만 게이트의 정량 검증, 그리고 <b>조건 미충족 시 거부</b>까지 — 결정의 전 과정이 기록에 남습니다.</p>
+    </div>
+    <div class="reveal" style="max-width:880px;margin:0 auto;background:#0c1124;border:1px solid #1c2740;border-radius:16px;overflow:hidden;box-shadow:0 18px 48px rgba(8,14,32,.16)">
+      <div style="display:flex;align-items:center;gap:7px;padding:11px 16px;border-bottom:1px solid #1a2238">
+        <span style="width:11px;height:11px;border-radius:50%;background:#ff5f57"></span>
+        <span style="width:11px;height:11px;border-radius:50%;background:#febc2e"></span>
+        <span style="width:11px;height:11px;border-radius:50%;background:#28c840"></span>
+        <span style="margin-left:8px;color:#7d8db5;font:600 11.5px 'JetBrains Mono',monospace">brain.log · MEAN_REVERSION 사이클</span>
+      </div>
+      <pre style="margin:0;padding:18px 18px;overflow-x:auto;font:12.5px/1.85 'JetBrains Mono',monospace;color:#d8e0f5"><span style="color:#5f6f96">2026-06-23T11:09:58 [INFO] regime_filter:</span> <span style="color:#5fd9b0">[REGIME] MEAN_REVERSION</span> | 평균회귀 진입 허용 <span style="color:#9fb4e6">(VIX-Z=-0.76, F&amp;G=23)</span>
+<span style="color:#5f6f96">2026-06-23T11:10:08 [INFO] brain:</span> <span style="color:#7aa2ff">[3] AI 결정:</span> SIGNAL=<span style="color:#5fd9b0">LONG</span>, SYMBOL=<span style="color:#ffd166">SOLUSDT</span>
+<span style="color:#5f6f96">2026-06-23T11:10:08 [INFO] brain:</span> <span style="color:#9fb4e6">[META]</span> Z=0.0085  BETA=1.4845  VAR=0.000009
+<span style="color:#5f6f96">2026-06-23T11:10:08 [INFO] brain:</span> <span style="color:#ff8e72">[META] AI 판사 진입 거부 — 칼만 진입 조건 미충족 (Z=0.0085)</span></pre>
+    </div>
+    <p class="reveal" style="max-width:880px;margin:14px auto 0;font-size:13px;color:var(--ink-soft);line-height:1.7">레짐은 평균회귀를 허용했고 AI는 SOL 롱을 제안했지만, 칼만 Z(0.0085)가 게이트 임계(1.65)에 한참 못 미쳐 <b>정량 게이트가 진입을 거부</b>했습니다. AI 제안 위에 통계 게이트가 거부권을 갖는 구조입니다. <span style="color:var(--ink-faint)">※ dry-run 로그 · 키·잔고 미포함.</span></p>
+  </div>
+</section>
+
+<!-- AI 보조 (회고 KB — RSI 섹션은 The Strategy 위로 이동) -->
+<section class="pad" id="ai">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">Self-Improving Loop · 제도화</span>
+      <h2 class="section-title reveal">회고를 운용 원칙으로 — HITL 제도화</h2>
+      <p class="section-sub reveal">위 재귀개선 루프의 ⑤ 제도화 팔입니다. 결정을 회고해 운용 <b>원칙</b>을 다듬되, 사람 승인(HITL)을 거쳐야 원칙 KB에 박힙니다. 단, 안전 헌법층도 진입 상수도 이 루프가 코드 밖에서 바꿀 수 없습니다.</p>
+    </div>
+    <div class="ai2 reveal">
+      <div class="ix">🔁</div>
+      <div>
+        <h4>회고 → 원칙 제안(staged) → 사람 승인(HITL) → 원칙 KB 갱신</h4>
+        <p><code>/reflect</code>로 결정을 회고하면 원칙 개선안이 staged 파일로 올라오고, 오너가 <code>/principle approve</code>로 승인해야 <code>principles.yaml</code>(원칙 KB)에 반영됩니다. 회고 서술은 페르소나 '이현수'(소설 『초파리』 캐릭터 — <b>창작 기반</b>)가 맡습니다. <b>중요 — 원칙 KB 승인은 기록일 뿐, 실거래 라이브 토글이나 칼만 진입 상수를 바꾸지 않습니다.</b> 진입 임계·청산·타임스탑 같은 상수는 코드 재배포로만, 안전 헌법층(kill-switch·레버리지·일손실)은 <code>risk_config.json</code>으로만 바뀝니다. 자기진화가 안전이나 핵심 전략 상수를 침범할 수 없습니다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EVALUATION -->
+<section class="pad soft" id="eval">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">Evaluation</span>
+      <h2 class="section-title reveal">성과가 아니라, 규칙 준수를 측정한다</h2>
+      <p class="section-sub reveal">수익률로 성과를 주장하지 않습니다. 대신 <b>시스템이 규칙을 지키는가</b>를 평가합니다(자체 eval 하네스 · 실 API 없는 dry-run). 이 평가가 재귀개선 루프의 <b>validation 팔</b>입니다.</p>
+    </div>
+    <div class="reveal" style="max-width:720px;margin:0 auto">
+      <div style="display:inline-block;font-size:11.5px;font-weight:700;color:#b5532b;background:rgba(181,83,43,.1);border:1px solid rgba(181,83,43,.4);padding:5px 12px;border-radius:999px;margin-bottom:14px">⚠️ DRY-RUN 시뮬레이션 · 실거래 성과 아님</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13.5px">
+        <tbody>
+          <tr style="border-bottom:1px solid var(--line)"><td style="padding:10px 6px;color:var(--ink-soft)">리스크 룰 준수율</td><td style="padding:10px 6px;text-align:right;font-weight:700;color:var(--ink)">100.0% <span style="color:var(--ink-faint);font-weight:400">(위반 0)</span></td></tr>
+          <tr style="border-bottom:1px solid var(--line)"><td style="padding:10px 6px;color:var(--ink-soft)">TP/SL 부착률</td><td style="padding:10px 6px;text-align:right;font-weight:700;color:var(--ink)">100.0% <span style="color:var(--ink-faint);font-weight:400">(3/3 진입)</span></td></tr>
+          <tr style="border-bottom:1px solid var(--line)"><td style="padding:10px 6px;color:var(--ink-soft)">킬스위치 차단 예상/실제</td><td style="padding:10px 6px;text-align:right;font-weight:700;color:var(--ink)">2 / 2 ✅</td></tr>
+          <tr style="border-bottom:1px solid var(--line)"><td style="padding:10px 6px;color:var(--ink-soft)">일일 손실 한도 차단</td><td style="padding:10px 6px;text-align:right;font-weight:700;color:var(--ink)">✅ 정확</td></tr>
+          <tr style="border-bottom:1px solid var(--line)"><td style="padding:10px 6px;color:var(--ink-soft)">원칙 준수율</td><td style="padding:10px 6px;text-align:right;font-weight:700;color:var(--ink)">100.0% <span style="color:var(--ink-faint);font-weight:400">(미인용 진입 0)</span></td></tr>
+          <tr style="border-bottom:1px solid var(--line)"><td style="padding:10px 6px;color:var(--ink-soft)">결정 결정론(동일 seed 2회)</td><td style="padding:10px 6px;text-align:right;font-weight:700;color:var(--ink)">✅ 재현</td></tr>
+          <tr><td style="padding:10px 6px;color:var(--ink-soft)">결정 품질 점수</td><td style="padding:10px 6px;text-align:right;font-weight:700;color:var(--ink)">100.0 / 100</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:12px;color:var(--ink-faint);margin-top:12px;line-height:1.6">출처: repo <code>eval_report.md</code>/<code>metrics.json</code> · seed=42 · 20틱·3진입 · 결정론 재현. 전부 <b>dry-run 프로세스·리스크 지표</b>이며 실거래 P&amp;L·수익률이 아닙니다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- POSTMORTEM -->
+<section class="pad soft">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">Build Journey</span>
+      <h2 class="section-title reveal">엔지니어링 회고</h2>
+    </div>
+    <div class="tl">
+      <div class="tl-item reveal"><h4>ccxt 없이 Binance REST 직접 구현</h4><p>라이브러리에 의존하지 않고 서명(HMAC)·요청·레이트리밋을 직접 제어. 통신 계층을 완전히 장악해 디버깅·확장 자유도를 확보.</p></div>
+      <div class="tl-item reveal"><h4>전략과 신뢰성의 분리 — 이종 언어 듀얼 트랙</h4><p>가변 전략(Python)과 끊기면 안 되는 통신·청산(Rust)을 한 곳에 두니 신뢰성이 흔들림. 로컬 REST로 분리해 해결.</p></div>
+      <div class="tl-item reveal"><h4>휴대폰 무중단 가동 — Termux → Ubuntu PRoot</h4><p>전용 서버 없이 모바일 무중단 가동을 시도하다 컴파일 지옥. Ubuntu PRoot로 표준화하고 절차를 <code>SOP</code>로 문서화.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO -->
+<section class="pad">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">Demo</span>
+      <h2 class="section-title reveal">데모 자산</h2>
+      <p class="section-sub reveal">모두 dry-run 화면 — 키·잔고·손익(P&amp;L)은 표시하지 않습니다. (게이트 개방·진입 발생 시 캡처 예정)</p>
+    </div>
+    <div class="demo-grid">
+      <div class="shot reveal"><div class="si">📨</div><div class="vt">텔레그램 진입 알림</div><div class="vs">SOLUSDT LONG 3x · TP백스탑·SL−10%·타임스탑 120분</div><div class="ph">스크린샷 자리 · dry-run</div></div>
+      <div class="shot reveal"><div class="si">📊</div><div class="vt">/status 포지션 브리핑</div><div class="vs">종목·진입가·TP·SL (잔고·손익 마스킹)</div><div class="ph">스크린샷 자리</div></div>
+      <div class="shot reveal"><div class="si">🦀</div><div class="vt">Spine REST 응답</div><div class="vs">GET /position/active (키·잔고 마스킹)</div><div class="ph">스크린샷 자리</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- LIMITS -->
+<section class="pad soft">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow reveal">Honest Status</span>
+      <h2 class="section-title reveal">한계와 다음 단계</h2>
+    </div>
+    <div class="limits">
+      <div class="lim reveal">
+        <h4>⚠️ 현재 한계</h4>
+        <ul>
+          <li><b>백테스트·실거래 성과는 측정 전.</b> dry-run 신호 작동까지 확인. 수익률·Sharpe·MDD 미주장.</li>
+          <li>게이트 기준은 단일 공적분쌍(BTC·ETH) — 동적·다중 기준쌍은 미구현.</li>
+          <li>AI 종목 선별의 일관성·레짐 필터 임계값·체제 전환 지연은 한계로 명시.</li>
+        </ul>
+      </div>
+      <div class="lim reveal">
+        <h4>🧭 다음 단계</h4>
+        <ul>
+          <li><b>백테스트 산출</b> — 과거 데이터로 Sharpe·MDD·반감기·ADF 측정 → 성과 수치 확보.</li>
+          <li>다중·동적 게이트 기준쌍 선정(공적분 스캔).</li>
+          <li>레짐 필터 튜닝 + 워크포워드 검증.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DISCLAIMER -->
+<section class="disc">
+  <div class="wrap disc-inner">
+    <div class="di">⚖️</div>
+    <div>
+      <h4>면책 고지</h4>
+      <p>QuantLeap은 <b>개인 학습·포트폴리오 목적의 프로젝트</b>입니다. <b>투자자문이 아니며</b> 어떤 수익도 보장하지 않습니다. 페이지의 인터랙티브·예시는 수식 작동을 보이기 위한 <b>예시 데이터</b>이고, 모든 운용 지표는 <b>dry-run 기준 · 백테스트 측정 전</b>으로 실거래 손익·승률·수익률을 의미하지 않습니다. 저장소는 clean-room으로 API 키·시크릿을 포함하지 않습니다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL -->
+<section class="final">
+  <div class="wrap">
+    <div class="final-card reveal">
+      <h2>감이 아니라 시스템으로</h2>
+      <p>논문에서 수식을 끌어와 직접 구현하고, 통계 게이트가 진입 타이밍을 정하면 AI가 종목·방향을 잡고, 리스크는 코드로 강제하며, 전략과 신뢰 로직을 분리한 자동매매 에이전트입니다.</p>
+      <div class="hero-cta">
+        <a class="btn btn-light" href="#playground">▶ Z-Score 인터랙티브</a>
+        <a class="btn btn-line" href="https://github.com/ljhljh0703-cmd/binance-trading-bot" target="_blank" rel="noopener">GitHub 저장소</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="brand"><span class="logo">📈</span> QuantLeap</div>
+    <div>통계 게이트 × AI 방향성 트레이더 · Kalman + Z-Score 게이트 · Python Brain + Rust Spine · dry-run</div>
+    <div class="contact">
+      <span>이주형 · Lee Ju Hyeong</span>
+      <a href="mailto:ljhljh0703@gmail.com">ljhljh0703@gmail.com</a>
+      <a href="https://github.com/ljhljh0703-cmd/binance-trading-bot" target="_blank" rel="noopener">github.com/ljhljh0703-cmd/binance-trading-bot</a>
+    </div>
+    <div style="margin-top:8px;font-size:12.5px">© 2026 이주형 · 개인 프로젝트 · 투자자문 아님 · dry-run · 백테스트 측정 전 · 실거래 성과 미검증</div>
+  </div>
+</footer>
+
+<script>
+  const nav=document.getElementById('nav');
+  addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>12));
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12,rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+  document.querySelectorAll('.stats-grid,.strat-grid,.regime,.tl,.demo-grid,.limits').forEach(g=>{[...g.children].forEach((c,i)=>{c.style.transitionDelay=(i*70)+'ms';});});
+
+  // ===== Interactive Z-Score chart =====
+  (function(){
+    const N=110, zExit=0.75, W=960, H=300, padL=40, padR=16, padT=22, padB=26;
+    const zMax=3.6;
+    // deterministic mean-reverting (OU) example series
+    let s=987654321; const rnd=()=>{s=(s*1103515245+12345)&0x7fffffff;return s/0x7fffffff;};
+    const z=[]; let v=0; for(let i=0;i<N;i++){v=v*0.85+(rnd()*2-1)*1.05; if(v>zMax)v=zMax; if(v<-zMax)v=-zMax; z.push(v);}
+    const innerW=W-padL-padR, innerH=H-padT-padB;
+    const X=i=>padL+i*(innerW/(N-1));
+    const Y=val=>padT+(zMax-val)/(2*zMax)*innerH;
+    const svg=document.getElementById('zcChart');
+    const slider=document.getElementById('zcSlider'), zval=document.getElementById('zcVal'),
+          entriesEl=document.getElementById('zcEntries'), nowEl=document.getElementById('zcNow');
+    function esc(n){return n}
+    function build(zEnter){
+      let p=''; // grid + bands
+      const bands=[
+        {y:Y(zEnter),c:'#3b6fff',w:1.6,d:''},{y:Y(-zEnter),c:'#3b6fff',w:1.6,d:''},
+        {y:Y(zExit),c:'#5f6f96',w:1,d:'4 4'},{y:Y(-zExit),c:'#5f6f96',w:1,d:'4 4'},
+        {y:Y(0),c:'#283354',w:1,d:''}
+      ];
+      bands.forEach(b=>{p+=`<line x1="${padL}" y1="${b.y.toFixed(1)}" x2="${W-padR}" y2="${b.y.toFixed(1)}" stroke="${b.c}" stroke-width="${b.w}" ${b.d?`stroke-dasharray="${b.d}"`:''}/>`;});
+      // band labels
+      p+=`<text x="${W-padR}" y="${(Y(zEnter)-5).toFixed(1)}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="11" fill="#7aa2ff">+${zEnter.toFixed(2)} 진입</text>`;
+      p+=`<text x="${W-padR}" y="${(Y(-zEnter)+14).toFixed(1)}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="11" fill="#7aa2ff">−${zEnter.toFixed(2)}</text>`;
+      p+=`<text x="${W-padR}" y="${(Y(zExit)-4).toFixed(1)}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="10" fill="#7d8db5">±0.75 청산</text>`;
+      // z polyline
+      let pts=z.map((val,i)=>`${X(i).toFixed(1)},${Y(val).toFixed(1)}`).join(' ');
+      p+=`<polyline points="${pts}" fill="none" stroke="#8ea2c9" stroke-width="1.8"/>`;
+      // entry/exit markers (flat<->position state machine)
+      let inPos=false, dir=0, entries=0, mk='';
+      for(let i=0;i<N;i++){
+        const val=z[i];
+        if(!inPos && Math.abs(val)>zEnter){
+          inPos=true; dir=val>0?-1:1; entries++;
+          const col=val>0?'#ff8e72':'#5fd9b0';
+          mk+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(val).toFixed(1)}" r="5" fill="${col}" stroke="#0c1124" stroke-width="1.5"/>`;
+        } else if(inPos && Math.abs(val)<zExit){
+          inPos=false;
+          mk+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(val).toFixed(1)}" r="4" fill="none" stroke="#bcc8ec" stroke-width="1.6"/>`;
+        }
+      }
+      svg.innerHTML=p+mk;
+      entriesEl.textContent=entries+'회';
+    }
+    function upd(){const ze=parseFloat(slider.value);zval.textContent=ze.toFixed(2);nowEl.textContent=ze.toFixed(2);build(ze);}
+    slider.addEventListener('input',upd);
+    upd();
+  })();
+
+  // ===== Telegram scenario auto-play (대화→전략수정→모니터링→신호→회고) =====
+  (function(){
+    const feed=document.getElementById('tgFeed'); if(!feed) return;
+    const S=[
+      {w:'me', h:'/status'},
+      {w:'bot', h:'💰 현재 잔고: 13.34 USDT<span class="cfg">현재 활성화된 포지션 없음.</span>'},
+      {w:'sys', h:'[REGIME] MEAN_REVERSION 허용 · VIX-Z −0.76 · F&amp;G 23'},
+      {w:'bot', h:'🎯 <span class="dn">[타격 완료] SOLUSDT LONG 3x</span><span class="cfg">진입가 145.2300 · QTY 0.2750 · LEV 3x</span><span class="cfg">1차 청산: Z &lt; 0.75 (평균회귀 완료)</span><span class="cfg">🎯 TP 백스탑 151.7650 · 🛡️ SL 142.3254 (−10% ROE)</span><span class="cfg">⏱️ 타임스탑 120분</span>'},
+      {w:'me', h:'/status'},
+      {w:'bot', h:'📊 [현재 상태 보고]<span class="cfg">종목: SOLUSDT · 진입가 145.230000</span><span class="cfg">🎯 TP 151.765000 · 🛡️ SL 142.325000</span><span class="cfg">수익금 *** · ROE *** · 잔고 *** (dry-run 마스킹)</span>'},
+      {w:'me', h:'TP를 152로 올려줘'},
+      {w:'bot', h:'✅ TP가 152.000000로 수정되었습니다.<span class="cfg">자연어 → intent=UPDATE_TP (Gemini 분류)</span>'},
+      {w:'me', h:'오늘 변동성 크니 보수적으로 가자'},
+      {w:'bot', h:'<span class="who9">현수</span> "네. 무리해서 잡지 않습니다. 조건 안 맞으면 그냥 거릅니다."<span class="cfg">intent=CHAT · 페르소나 응답 (파라미터 변경 없음)</span>'},
+      {w:'sys', h:'※ 진입 임계(칼만 1.65)는 자연어로 못 바꿉니다 — 코드 전용'},
+      {w:'me', h:'/reflect'},
+      {w:'bot', h:'📊 [회고 — DRY-RUN 프로세스 지표]<span class="cfg">진입 12 · HOLD 47 · 차단 3</span><span class="cfg">원칙 준수율 91.7% · TP/SL 부착 100%</span><span class="cfg">📌 staged: proposal-20260623-zscore</span>'},
+      {w:'me', h:'/principle approve proposal-20260623-zscore'},
+      {w:'bot', h:'✅ 원칙 P007 KB 반영 완료<span class="cfg">⚠️ 이 승인은 실거래 라이브 토글과 무관합니다.</span>'},
+    ];
+    const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+    let i=0;
+    async function run(){
+      while(document.getElementById('tgFeed')){
+        const d=S[i%S.length];
+        const el=document.createElement('div');
+        el.className='msg '+d.w; el.innerHTML=d.h;
+        feed.appendChild(el);
+        while(feed.children.length>4){const f=feed.firstElementChild; f.classList.add('out'); setTimeout(()=>f.remove(),300); break;}
+        await sleep(d.w==='me'?1200:2000);
+        i++;
+        if(i%S.length===0) await sleep(1000);
+      }
+    }
+    run();
+  })();
+</script>
+</body>
+</html>
