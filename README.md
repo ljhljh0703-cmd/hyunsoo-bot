@@ -8,7 +8,7 @@
 ![clean-room](https://img.shields.io/badge/clean--room-코드_비공개_·_시크릿_0-555?style=flat-square)
 ![perf](https://img.shields.io/badge/실거래_성과-측정전-9a9a9a?style=flat-square)
 
-> 🔗 **라이브 포트폴리오:** [ljhljh0703-cmd.github.io/hyunsoo-bot](https://ljhljh0703-cmd.github.io/hyunsoo-bot/)
+> 🔗 **라이브 포트폴리오:** [ljhljh0703-cmd.github.io/hyunsoo-bot/portfolio.html](https://ljhljh0703-cmd.github.io/hyunsoo-bot/portfolio.html)
 > 이 저장소는 **설계·투자 로직**을 공개하는 포트폴리오입니다. 실매매 코드·키는 비공개(clean-room). **투자자문 아님 · 수익 보장 아님 · 전 지표 dry-run.**
 
 ## 문제 정의
