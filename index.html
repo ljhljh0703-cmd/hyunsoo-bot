@@ -623,13 +623,41 @@
   <div class="wrap">
     <div class="center">
       <span class="eyebrow reveal">Demo</span>
-      <h2 class="section-title reveal">데모 자산</h2>
-      <p class="section-sub reveal">모두 dry-run 화면 — 키·잔고·손익(P&amp;L)은 표시하지 않습니다. (게이트 개방·진입 발생 시 캡처 예정)</p>
+      <h2 class="section-title reveal">실제 출력</h2>
+      <p class="section-sub reveal">텔레그램·Brain·Spine의 실제 출력 포맷입니다. <b>전부 dry-run</b> · 키·잔고·손익(P&amp;L)은 마스킹.</p>
     </div>
     <div class="demo-grid">
-      <div class="shot reveal"><div class="si">📨</div><div class="vt">텔레그램 진입 알림</div><div class="vs">SOLUSDT LONG 3x · TP백스탑·SL−10%·타임스탑 120분</div><div class="ph">스크린샷 자리 · dry-run</div></div>
-      <div class="shot reveal"><div class="si">📊</div><div class="vt">/status 포지션 브리핑</div><div class="vs">종목·진입가·TP·SL (잔고·손익 마스킹)</div><div class="ph">스크린샷 자리</div></div>
-      <div class="shot reveal"><div class="si">🦀</div><div class="vt">Spine REST 응답</div><div class="vs">GET /position/active (키·잔고 마스킹)</div><div class="ph">스크린샷 자리</div></div>
+      <div class="reveal" style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:17px">📨</span><b style="font-size:14px;color:var(--ink)">텔레그램 진입 알림</b></div>
+        <pre style="margin:0;background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;padding:11px;font:11px/1.65 'JetBrains Mono',monospace;color:var(--ink);white-space:pre-wrap;overflow:auto">🎯 [타격 완료] SOLUSDT LONG 3x
+진입가 145.2300 · QTY 0.2750 · LEV 3x
+🎯 1차 청산: Z-Score &lt; 0.75
+🎯 TP 백스탑 151.7650
+🛡️ 손절 142.3254 (−10% ROE)
+⏱️ 타임스탑 120분</pre>
+      </div>
+      <div class="reveal" style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:17px">📊</span><b style="font-size:14px;color:var(--ink)">/status 포지션 브리핑</b></div>
+        <pre style="margin:0;background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;padding:11px;font:11px/1.65 'JetBrains Mono',monospace;color:var(--ink);white-space:pre-wrap;overflow:auto">📊 [현재 상태 보고]
+종목: SOLUSDT
+진입가: 145.230000
+🎯 TP 151.765000 · 🛡️ SL 142.325000
+수익금 *** · ROE *** · 잔고 ***
+<span style="color:var(--ink-faint)">(dry-run 마스킹)</span></pre>
+      </div>
+      <div class="reveal" style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:17px">🦀</span><b style="font-size:14px;color:var(--ink)">Spine REST 응답</b></div>
+        <pre style="margin:0;background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;padding:11px;font:11px/1.65 'JetBrains Mono',monospace;color:var(--ink);white-space:pre-wrap;overflow:auto">GET /position/active →
+{
+  "balance": "***",
+  "positions": [{
+    "symbol": "SOLUSDT", "side": "LONG",
+    "entryPrice": 145.23,
+    "tp": 151.765, "sl": 142.325
+  }],
+  "status": "success"
+}</pre>
+      </div>
     </div>
   </div>
 </section>
